@@ -1,5 +1,6 @@
 #import sys
 #import os
+import system
 import epd7in3f
 import time, os, micropython
 #import logging
@@ -42,3 +43,4 @@ else:
     print("No .bin files found")
 
 print("Done")
+system.screen_off()

@@ -216,7 +216,9 @@ class EPD:
     def Clear(self, color=0x11):
         print("e-Paper Clear")
         self.send_command(0x10)
-        self.send_data2([color] * int(self.height) * int(self.width/2))
+        
+        self.send_data2([color] * int(self.height) * int(self.width/8))
+
 
         self.TurnOnDisplay()
         print("e-Paper Clear done")
