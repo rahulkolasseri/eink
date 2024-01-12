@@ -1,4 +1,4 @@
-import network, machine, time, esp32
+import network, machine, time, esp32, ws2812b
 wlan = network.WLAN(network.STA_IF)
 
 def wlan_on():
@@ -46,16 +46,16 @@ def get_battery_voltage():
     val = adc_battery.read_uv() * 2 / 1000000
     return val, adc_battery.read_uv()
 
-SCREEN_MOSFET = machine.Pin(15, machine.Pin.OUT)
-SCREEN_MOSFET.value(0)
+# SCREEN_MOSFET = machine.Pin(15, machine.Pin.OUT)
+# SCREEN_MOSFET.value(0)
 
-def screen_on():
-    print("screen on")
-    SCREEN_MOSFET.value(1)
+# def screen_on():
+#     print("screen on")
+#     SCREEN_MOSFET.value(1)
 
-def screen_off():
-    print("screen off")
-    SCREEN_MOSFET.value(0)
+# def screen_off():
+#     print("screen off")
+#     SCREEN_MOSFET.value(0)
 
 TOUCH_BUTTON = machine.Pin(6, machine.Pin.IN)
 
@@ -84,5 +84,7 @@ def triple_pulseprint(string, t=100):
 
 def sleeptime(t=300, wakebutton=TOUCH_BUTTON):
     esp32.wake_on_ext0(wakebutton, esp32.WAKEUP_ANY_HIGH)
+    ws2812b.off_all()
+    VIBE_MOTOR.value(0)
     print(f"going to sleep for {t} seconds")
     machine.deepsleep(t * 1000)

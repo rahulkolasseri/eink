@@ -1,4 +1,4 @@
-import time, machine, neopixel, random, easing_functions, math, system
+import time, machine, neopixel, random, easing_functions, math, system, asyncio
 pin = machine.Pin(18, machine.Pin.OUT)
 np = neopixel.NeoPixel(pin, 3)
 
@@ -73,6 +73,36 @@ def blink(leds=[0,1,2], c=(255,0,0), ontime=0.1, offtime=0.1, repeats=3, endcolo
             np.write()
             if vibe:
                 system.VIBE_MOTOR.value(0)
+
+async def ablink(leds=[0,1,2], c=(255,0,0), ontime=0.1, offtime=0.1, repeats=3, endcolor=(0,0,0), vibe=False):
+    if type(leds) == int:
+        leds = [leds]
+    print(f"blink {leds} colour: {c} ontime: {ontime} offtime: {offtime} repeats: {repeats}")
+    orig = [np[led] for led in leds]
+    for i in range(repeats):
+        for led in leds:
+            np[led] = c
+        np.write()
+        if vibe:
+            system.VIBE_MOTOR.value(1)
+        await asyncio.sleep(ontime)
+
+        if i != repeats - 1:
+            for led in leds:
+                np[led] = orig[led]
+            np.write()
+            if vibe:
+                system.VIBE_MOTOR.value(0)
+            await asyncio.sleep(offtime)
+        else:
+            for led in leds:
+                np[led] = endcolor
+            np.write()
+            if vibe:
+                system.VIBE_MOTOR.value(0)
+
+
+
 def push():
     print("push")
     temp = np[2]
