@@ -3,46 +3,71 @@ pin = machine.Pin(18, machine.Pin.OUT)
 np = neopixel.NeoPixel(pin, 3)
 
 def off_all():
-    print("off all")
+    #print("off all")
     for i in range(3):
         np[i] = (0, 0, 0)
     np.write()
 
 def on_all():
-    print("on all")
+    #print("on all")
     for i in range(3):
         np[i] = (255, 255, 255)
     np.write()
 
+def off(led):
+    print(f"off {led}")
+    np[led] = (0, 0, 0)
+    np.write()
+
+async def aoff(led):
+    #print(f"off {led}")
+    np[led] = (0, 0, 0)
+    np.write()
+
 def red(led):
-    print(f"red {led}")
+    #print(f"red {led}")
+    np[led] = (255, 0, 0)
+    np.write()
+
+async def ared(led):
+    #print(f"red {led}")
     np[led] = (255, 0, 0)
     np.write()
 
 def green(led):
-    print(f"green {led}")
+    #print(f"green {led}")
+    np[led] = (0, 255, 0)
+    np.write()
+
+async def agreen(led):
+    #print(f"green {led}")
     np[led] = (0, 255, 0)
     np.write()
 
 def blue(led):
-    print(f"blue {led}")
+    #print(f"blue {led}")
+    np[led] = (0, 0, 255)
+    np.write()
+
+async def ablue(led):
+    #print(f"blue {led}")
     np[led] = (0, 0, 255)
     np.write()
 
 def red_all():
-    print("red all")
+    #print("red all")
     for i in range(3):
         np[i] = (255, 0, 0)
     np.write()
 
 def green_all():
-    print("green all")
+    #print("green all")
     for i in range(3):
         np[i] = (0, 255, 0)
     np.write()
 
 def blue_all():
-    print("blue all")
+    #print("blue all")
     for i in range(3):
         np[i] = (0, 0, 255)
     np.write()
@@ -50,7 +75,7 @@ def blue_all():
 def blink(leds=[0,1,2], c=(255,0,0), ontime=0.1, offtime=0.1, repeats=3, endcolor=(0,0,0), vibe=False):
     if type(leds) == int:
         leds = [leds]
-    print(f"blink {leds} colour: {c} ontime: {ontime} offtime: {offtime} repeats: {repeats}")
+    #print(f"blink {leds} colour: {c} ontime: {ontime} offtime: {offtime} repeats: {repeats}")
     orig = [np[led] for led in leds]
     for i in range(repeats):
         for led in leds:
@@ -77,7 +102,7 @@ def blink(leds=[0,1,2], c=(255,0,0), ontime=0.1, offtime=0.1, repeats=3, endcolo
 async def ablink(leds=[0,1,2], c=(255,0,0), ontime=0.1, offtime=0.1, repeats=3, endcolor=(0,0,0), vibe=False):
     if type(leds) == int:
         leds = [leds]
-    print(f"blink {leds} colour: {c} ontime: {ontime} offtime: {offtime} repeats: {repeats}")
+    #print(f"blink {leds} colour: {c} ontime: {ontime} offtime: {offtime} repeats: {repeats}")
     orig = [np[led] for led in leds]
     for i in range(repeats):
         for led in leds:
@@ -104,7 +129,7 @@ async def ablink(leds=[0,1,2], c=(255,0,0), ontime=0.1, offtime=0.1, repeats=3, 
 
 
 def push():
-    print("push")
+    #print("push")
     temp = np[2]
     np[2] = np[1]
     np[1] = np[0]
@@ -209,6 +234,36 @@ def breath(led, repeats=3, steps=7):
             np[led] = c
             np.write()
             time.sleep(0.1)
+
+async def abreath(led, repeats=3, steps=7, diffc=False):
+
+    if diffc != False:
+        c1 = np[led]
+        c2 = (0, 0, 0)
+        c_steps_out = transit_path(c1, c2, steps)
+        c_steps_in = transit_path(c2, diffc, steps)
+        for c in c_steps_out:
+            np[led] = c
+            np.write()
+            await asyncio.sleep(0.1)
+        for c in c_steps_in:
+            np[led] = c
+            np.write()
+            await asyncio.sleep(0.1)
+        repeats -= 1
+
+    for i in range(repeats):
+        c1 = np[led]
+        c2 = (0, 0, 0)
+        c_steps = transit_path(c1, c2, steps)
+        for c in c_steps:
+            np[led] = c
+            np.write()
+            await asyncio.sleep(0.1)
+        for c in c_steps[::-1]:
+            np[led] = c
+            np.write()
+            await asyncio.sleep(0.1)
 
 def breath_all(repeats=3, steps=5):
     for i in range(repeats):
