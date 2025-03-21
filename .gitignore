@@ -1,3 +1,5 @@
 wifis.txt
 bmps/*.*
 bins/*.*
+.vscode
+__pycache__/*.*

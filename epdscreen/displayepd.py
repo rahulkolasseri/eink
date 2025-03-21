@@ -1,6 +1,6 @@
 import system
-import epd7in3f
-import time, os, micropython, random, ws2812b
+import epdscreen.epd7in3f as epd7in3f
+import time, os, micropython, random, ws2812b # type: ignore
 
 epd = epd7in3f.EPD()
 

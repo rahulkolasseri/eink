@@ -1,5 +1,5 @@
 from PIL import Image
-import os, glob, zlib
+import os, glob, zlib, sys
 from io import BytesIO
 # Display resolution
 EPD_WIDTH       = 800
@@ -44,13 +44,24 @@ def writebuf(buf, filename="image2"):
             buf
         )
 def writebin(buf, filename="image"):
-    with open(filename+".bin", "wb") as f:
+    # Ensure output directory exists
+    out_dir = os.path.join(".", "bins")
+    os.makedirs(out_dir, exist_ok=True)
+    output_path = os.path.join(out_dir, filename+".bin")
+
+    with open(output_path, "wb") as f:
         for b in buf:
             f.write(bytes([b & 0xff]))
+    
+    print("Wrote bin file to:", output_path)
 
 def readbin(filename="image"):
-    with open(filename+".bin", "rb") as f:
+    out_dir = os.path.join(".", "bins")
+    output_path = os.path.join(out_dir, filename+".bin")
+
+    with open(output_path, "rb") as f:
         buf = f.read()
+    
     for i in range(3):
         print(buf[i])
     print(len(buf))
@@ -73,18 +84,55 @@ def writezlib(buf, filename="image"):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python genbuf.py <image_filename>")
+        sys.exit(1)
 
+    # Build the input file path: image must be inside the ./bmps folder
+    image_filename = sys.argv[1]
+
+    if image_filename != "all":
+        in_path = os.path.join(".", "bmps", image_filename)
+        if not os.path.isfile(in_path):
+            print("File not found:", in_path)
+            sys.exit(1)
+        # Open image and generate buffer
+        try:
+            img = Image.open(in_path)
+        except Exception as e:
+            print("Error opening image:", e)
+            sys.exit(1)
+        buf = getbuffer(img)
+        base_name = os.path.splitext(image_filename)[0]
+        writebin(buf, base_name)
+        readbin(image_filename[:-4])
+    else:
+        pass
+        # bmps = glob.glob("./bmps/*.bmp")
+        # for bmp in bmps:
+        #     buf = getbuffer(Image.open(bmp))
+        #     writebin(buf, bmp[:-4])
+        #     readbin(bmp[:-4])
+
+        # pngs = glob.glob("./bmps/*.png")
+        # for png in pngs:
+        #     buf = getbuffer(Image.open(png))
+        #     writebin(buf, png[:-4])
+        #     readbin(png[:-4])
+    
+    
+    
     # pngs = glob.glob("*.png")
     # for png in pngs:
     #     buf = getbuffer(Image.open(png))
     #     writebin(buf, png[:-4])
         # readbin(png[:-4])
     
-    bmps = glob.glob("*.bmp")
-    for bmp in bmps:
-        buf = getbuffer(Image.open(bmp))
-        writebin(buf, bmp[:-4])
-        readbin(bmp[:-4])
+    # bmps = glob.glob("*.bmp")
+    # for bmp in bmps:
+    #     buf = getbuffer(Image.open(bmp))
+    #     writebin(buf, bmp[:-4])
+    #     readbin(bmp[:-4])
 
     # for bmp in bmps:
     #     if bmp == "esha-einked2.bmp":

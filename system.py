@@ -1,4 +1,4 @@
-import network, machine, time, esp32, ws2812b, asyncio, leds
+import network, machine, time, esp32, ws2812b, asyncio, leds # type: ignore
 
 ############
 ### WIFI ###
@@ -66,8 +66,8 @@ def connect_to_network(nets):
 ############
 
 def update_time():
-    if wlan.isconnected():
-        import ntptime
+    if wlan.isconnected(): # type: ignore
+        import ntptime # type: ignore
         ntptime.settime()
         print(f"time updated, current time is {time.localtime()}")
     else:
@@ -104,6 +104,16 @@ def get_battery_voltage():
 #############
 
 TOUCH_BUTTON = machine.Pin(6, machine.Pin.IN)
+from aspushbutton import Pushbutton
+# async def touchs():
+#     button = Pushbutton(TOUCH_BUTTON, suppress=True)
+
+#     button.release_func(pulseprint, ("SHORT", 80))
+
+#     button.long_func(double_pulseprint, ("LONG", 100))
+
+#     await asyncio.sleep(5*60*200) 
+
 
 
 #############
@@ -114,6 +124,7 @@ def sleeptime(t=300, wakebutton=TOUCH_BUTTON, forever=False):
     esp32.wake_on_ext0(wakebutton, esp32.WAKEUP_ANY_HIGH)
     ws2812b.ease_to_all_min(20)
     VIBE_MOTOR.value(0)
+    oledclear(ssd, wri)
     print(f"going to sleep for {t} seconds")
     if forever:
         print("sleeping forever")
@@ -170,3 +181,27 @@ def triple_pulseprint_sleep(string, t=100):
     print(string)
     triple_pulse_vibe_motor(t)
     sleeptimeforever()
+
+############
+### OLED ###
+############
+
+from oled.ssd1306_setup import WIDTH, HEIGHT, setup
+from oled.writer import Writer
+import oled.hvnm as hvnm  # Font to use
+
+use_spi=False  # Tested with a 128*64 I2C connected SSD1306 display
+ssd = setup(use_spi, soft=True)  # Instantiate display: must inherit from framebuf
+ssd.rotate(False)
+wri = Writer(ssd, hvnm)
+wri.set_textpos(ssd, 0, 0)
+
+
+def oledprint(str, wri=wri, ssd=ssd):
+    wri.printstring(str)
+    ssd.show()
+
+def oledclear(ssd=ssd, wri=wri):
+    ssd.fill(0)
+    wri.set_textpos(ssd, 0, 0)
+    ssd.show()

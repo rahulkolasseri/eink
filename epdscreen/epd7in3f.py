@@ -29,7 +29,7 @@
 #
 
 #import logging
-import epdconfig
+import epdscreen.epdconfig as epdconfig
 
 import io
 
@@ -217,7 +217,7 @@ class EPD:
         print("e-Paper Clear")
         self.send_command(0x10)
         
-        self.send_data2([color] * int(self.height) * int(self.width/8))
+        self.send_data2([color] * int(self.height) * int(self.width/2))
 
 
         self.TurnOnDisplay()
