@@ -1,5 +1,6 @@
-import system, asyncio
+import system, asyncio, time
 from countdown import countdown_from
+import webserver
 
 class MenuItem:
     def __init__(self, name, callback):
@@ -65,12 +66,14 @@ class Menu:
         return "Displaying random image..."
     
     def start_web_server(self):
-        # This would be implemented to start a web server
-        return "Starting web server..."
+        # Start the web server in a blocking way
+        webserver.start_server()
+        return "Web server stopped"
     
     def shutdown(self):
-        # This would be implemented to shut down the system
         return "Shutting down..."
+        time.sleep(2)
+        system.sleeptimeforever()
     
     # New countdown function that uses the countdown module
     def start_countdown(self):
@@ -91,6 +94,7 @@ async def menuStart():
     async def on_long_press():
         system.oledclear()
         display_text = menu.handle_long_press()
+        display_text = menu.handle_short_press()  # Update click out of start screen
         system.oledprint(display_text)
     
     # Set up button handlers

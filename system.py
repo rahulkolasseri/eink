@@ -124,6 +124,7 @@ def sleeptime(t=300, wakebutton=TOUCH_BUTTON, forever=False):
     esp32.wake_on_ext0(wakebutton, esp32.WAKEUP_ANY_HIGH)
     ws2812b.ease_to_all_min(20)
     VIBE_MOTOR.value(0)
+    wlan_off()
     oledclear(ssd, wri)
     print(f"going to sleep for {t} seconds")
     if forever:

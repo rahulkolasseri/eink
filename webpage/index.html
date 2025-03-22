@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ESP32 Web Server</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .shutdown-button {
+            background-color: #f44336;
+            margin-top: 20px;
+        }
+        .shutdown-button:hover {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ESP32 Web Server</h1>
+        <p>Welcome to the ESP32 web server!</p>
+        
+        <div class="status">
+            <h2>Device Status</h2>
+            <p>Battery: <span id="battery">Loading...</span></p>
+            <button onclick="checkStatus()">Refresh Status</button>
+        </div>
+        
+        <div>
+            <button class="shutdown-button" onclick="shutdownServer()">Shutdown Server</button>
+        </div>
+    </div>
+
+    <script>
+        // Function to check device status
+        function checkStatus() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('battery').textContent = data.battery;
+                })
+                .catch(error => {
+                    console.error('Error fetching status:', error);
+                    document.getElementById('battery').textContent = 'Error';
+                });
+        }
+        
+        // Function to shutdown the server
+        function shutdownServer() {
+            if (confirm('Are you sure you want to shutdown the server?')) {
+                fetch('/shutdown', { method: 'POST' })
+                    .then(() => {
+                        alert('Server is shutting down...');
+                    })
+                    .catch(error => {
+                        console.error('Error shutting down server:', error);
+                        // If we can't reach the server, it might already be shutting down
+                        alert('Server may be shutting down...');
+                    });
+            }
+        }
+
+        // Check status when page loads
+        window.onload = checkStatus;
+    </script>
+</body>
+</html>
