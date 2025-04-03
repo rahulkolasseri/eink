@@ -1,4 +1,4 @@
-with open('bins/test-ditheredImage.bin', 'rb') as f1, open('bins/test-binary.bin', 'rb') as f2:
+with open('einkpalatte7-ditheredImage.bin', 'rb') as f1, open('einkpalatte7-ditheredImage-js.bin', 'rb') as f2:
     content1 = f1.read()
     content2 = f2.read()
     

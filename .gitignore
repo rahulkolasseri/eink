@@ -1,5 +1,4 @@
 wifis.txt
-bmps/*.*
-bins/*.*
 .vscode
 __pycache__/*.*
+scratch
