@@ -18,46 +18,64 @@ def readssidpass():
             ssidpass[ssid.strip("\r")] = password.strip("\r")
     return ssidpass
 
-def wlan_on():
-    wlan = wlansetup()
+def wlan_on(wlan=wlansetup()):
+    wlan.active(False)
     wlan.active(True)
 
-def wlan_off():
-    wlan = wlansetup()
+def wlan_off(wlan=wlansetup()):
     wlan.active(False)
 
-def known_networks():
+def wlan_isconnected():
     wlan = wlansetup()
-    wlan_on()
+    return wlan.isconnected()
+
+def known_networks(wlan):
+    wlan_on(wlan)
     nets = wlan.scan()
     sorted(nets, key=lambda x: x[3], reverse=True)
 
     ssidpass = readssidpass()
 
-    return nets, ssidpass
+    knownnets = []
+    for net in nets:
+        ssid = net[0].decode()
+        if ssid in ssidpass:
+            knownnets.append([ssid, ssidpass[ssid]])
+    knets = knownnets
 
-async def aknown_networks():
-    leds.wlanled(1)
+    return knets
+
+
+
+def connect_to_network():
     wlan = wlansetup()
-    wlan_on()
-    nets = wlan.scan()
-    sorted(nets, key=lambda x: x[3], reverse=True)
-
-    ssidpass = readssidpass()
-
-    return nets, ssidpass
-
-def connect_to_network(nets):
-    wlan = wlansetup()
-    if not wlan.isconnected() and len(nets) > 0:
-        ssid = nets[0][0].decode()
-        password = "koala123"
+    wlan_on(wlan)
+    knets = known_networks(wlan)
+    print("wlan active: ", wlan.active())
+    print("wlan connected: ", wlan.isconnected())
+    print("wlan status: ", wlan.status())
+    print("known networks: ", knets)
+    if not wlan.isconnected() and len(knets) > 0:
+        ssid = knets[0][0]
+        password = knets[0][1]
         print(f"connecting to {ssid}")
         wlan.connect(ssid, password)
         while not wlan.isconnected():
-            time.sleep(0.1)
-        print("connected")
+            time.sleep(0.3)
+        print("wlan active: ", wlan.active())
+        print("wlan connected: ", wlan.isconnected())
+        print("wlan status: ", wlan.status())
         print(wlan.ifconfig())
+
+def ipaddr():
+    wlan = wlansetup()
+    if wlan.isconnected():
+        ip = wlan.ifconfig()[0]
+        return ip
+    else:
+        return None
+
+
 
 
 
@@ -148,40 +166,41 @@ def sleeptimeforever(wakebutton=TOUCH_BUTTON):
 VIBE_MOTOR = machine.Pin(8, machine.Pin.OUT)
 VIBE_MOTOR.value(0)
 
-def pulse_vibe_motor(t=100):
+async def pulse_vibe_motor(t=100):
     VIBE_MOTOR.value(1)
-    time.sleep_ms(t)
+    await asyncio.sleep_ms(t)
     VIBE_MOTOR.value(0)
 
-def double_pulse_vibe_motor(t=50):
-    pulse_vibe_motor(t)
-    time.sleep_ms(100)
-    pulse_vibe_motor(t)
+async def double_pulse_vibe_motor(t=50):
+    await pulse_vibe_motor(t)
+    await asyncio.sleep_ms(100)
+    await pulse_vibe_motor(t)
 
 
-def triple_pulse_vibe_motor(t=50):
-    pulse_vibe_motor(t)
-    time.sleep_ms(100)
-    pulse_vibe_motor(t)
-    time.sleep_ms(100)
-    pulse_vibe_motor(t)
+async def triple_pulse_vibe_motor(t=50):
+    await pulse_vibe_motor(t)
+    await asyncio.sleep_ms(100)
+    await pulse_vibe_motor(t)
+    await asyncio.sleep_ms(100)
+    await pulse_vibe_motor(t)
 
-def pulseprint(string, t=80):
+async def pulseprint(string, t=80):
     print(string)
-    pulse_vibe_motor(t)
+    await pulse_vibe_motor(t)
 
-def double_pulseprint(string, t=100):
+async def double_pulseprint(string, t=100):
     print(string)
-    double_pulse_vibe_motor(t)
+    await double_pulse_vibe_motor(t)
 
-def triple_pulseprint(string, t=100):
+async def triple_pulseprint(string, t=100):
     print(string)
-    triple_pulse_vibe_motor(t)
+    await triple_pulse_vibe_motor(t)
 
-def triple_pulseprint_sleep(string, t=100):
+async def triple_pulseprint_sleep(string, t=100):
     print(string)
-    triple_pulse_vibe_motor(t)
+    await triple_pulse_vibe_motor(t)
     sleeptimeforever()
+
 
 ############
 ### OLED ###

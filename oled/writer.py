@@ -61,6 +61,15 @@ class Writer():
             s.text_col = col
         return s.text_row,  s.text_col
 
+    @staticmethod
+    def get_text_position(device):
+        """Get current cursor position as (row, col)"""
+        devid = _get_id(device)
+        if devid not in Writer.state:
+            Writer.state[devid] = DisplayState()
+        s = Writer.state[devid]  # Current state
+        return s.text_row, s.text_col
+
     def __init__(self, device, font, verbose=True):
         self.devid = _get_id(device)
         self.device = device

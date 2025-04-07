@@ -1,49 +1,53 @@
 from microdot import Microdot, Response, Request
 import time, socket
-import wifi
 import os, json
 import gc
 import asyncio
 import hashlib
-from oled.oledfuncs import oledprint, oledclear
+from system import oledprint, oledclear, sleeptimeforever
+from system import connect_to_network, wlan_isconnected, ipaddr
+from epdscreen import displayepd
 
 Request.max_content_length = 200 * 1024  # 200KB
-# Set a very conservative chunk size for file operations
-CHUNK_SIZE = 1 * 1024  # 1KB
-# Set the maximum body length for requests to be slightly less than the chunk size, above will be streamed in chunks
-Request.max_body_length = CHUNK_SIZE - 1  
+# Set a small but reasonable chunk size since we have 8mb of PSRAM
+CHUNK_SIZE = 8 * 1024
+# Set the maximum body length for requests to 1KB to force streaming for file uploads
+Request.max_body_length = 1024
 
 async def setup(autoconnect=False):
+    oledclear()
     if autoconnect:
-        print("Attempting to autoconnect to WiFi...")
+        # print("Attempting to autoconnect to WiFi...")
         oledprint("Attempting to autoconnect to WiFi...")
         await asyncio.sleep(0)  # Allow other tasks to run
-        wifi.connect_to_network()
+        connect_to_network()
         await asyncio.sleep(1)
     else:
-        print("Skipping autoconnect, assuming WiFi is already connected.")
+        # print("Skipping autoconnect, assuming WiFi is already connected.")
+        pass
     #check 3 times if the wifi is connected
     for _ in range(3):
-        if wifi.wlan_isconnected():
-            print("WiFi is connected")
+        if wlan_isconnected():
+            # print("WiFi is connected")
             break
         else:
-            print("WiFi is not connected, retrying...")
+            # print("WiFi is not connected, retrying...")
             await asyncio.sleep(1)
     else:
-        print("WiFi is not connected after 3 attempts, shutting down...")
+        # print("WiFi is not connected after 3 attempts, shutting down...")
         return False
     
     app = Microdot()
     
     # Force garbage collection before starting server
-    print("Freeing memory before starting server...")
+    # print("Freeing memory before starting server...")
     gc.collect()
     free_mem = gc.mem_free() if hasattr(gc, 'mem_free') else "unknown"
-    print(f"Free memory: {free_mem}")
+    # print(f"Free memory: {free_mem}")
 
     @app.before_request
     async def startTimeMem(request):
+        request.g.fullshutdown = False
         request.g.start_time = time.ticks_ms()
         gc.collect()  # Force garbage collection before request
         request.g.free_mem = gc.mem_free()
@@ -53,13 +57,24 @@ async def setup(autoconnect=False):
         duration = time.ticks_diff(time.ticks_ms(), request.g.start_time)
         memUsed = request.g.free_mem - gc.mem_free()
         gc.collect()  # Force garbage collection after request
-        print(f"Request duration: {duration} ms, Memory used: {memUsed} bytes")
+        # print(f"Request duration: {duration} ms, Memory used: {memUsed} bytes")
+        if request.g.fullshutdown:
+            # print("Full shutdown initiated.")
+            asyncio.sleep(0.3)  # Allow time for shutdown
+            sleeptimeforever()
 
     @app.get('/shutdown')
     async def shutdown(request):
         request.app.shutdown()
-        print("Shutting down server...")
+        # print("Shutting down server...")
         return Response("Shutdown initiated.", status_code=200)
+    
+    @app.get('/shutdownfull')
+    async def shutdownfull(request):
+        request.g.fullshutdown = True
+        request.app.shutdown()
+        # print("Full shutdown initiated.")
+        return Response("Full shutdown initiated.", status_code=200)
 
     @app.get('/ping')
     async def ping(request):
@@ -105,7 +120,7 @@ async def setup(autoconnect=False):
                 return f'"{etag}"'  # Etags should be quoted
                 
         except Exception as e:
-            print(f"Error generating ETag: {e}")
+            # print(f"Error generating ETag: {e}")
             gc.collect()
             # Return None on error rather than a timestamp-based fallback
             return None
@@ -142,7 +157,7 @@ async def setup(autoconnect=False):
     # More memory efficient reading function - reads line by line instead of whole file
     async def read_html(filename):
         try:
-            print(f"Reading file: {filename}")
+            # print(f"Reading file: {filename}")
             content = []
             with open(filename, 'r') as file:
                 for line in file:
@@ -152,7 +167,7 @@ async def setup(autoconnect=False):
                         gc.collect()
             return ''.join(content)
         except Exception as e:
-            print(f"Error reading file {filename}: {e}")
+            # print(f"Error reading file {filename}: {e}")
             gc.collect()  # Force GC on error
             return f"Error: {str(e)}"
     
@@ -172,7 +187,7 @@ async def setup(autoconnect=False):
                         chunk = bytes(chunk) # Should not happen with 'rb'
                     yield chunk
             except Exception as e:
-                print(f"Error reading file in chunks: {e}")
+                # print(f"Error reading file in chunks: {e}")
                 gc.collect() # Collect garbage on error
                 yield b''
             finally:
@@ -180,7 +195,8 @@ async def setup(autoconnect=False):
                     try:
                         f.close()
                     except Exception as close_e:
-                        print(f"Error closing file {file_path}: {close_e}")
+                        # print(f"Error closing file {file_path}: {close_e}")
+                        pass
                 gc.collect() # Collect garbage after finishing or error
 
         return generate()
@@ -188,7 +204,7 @@ async def setup(autoconnect=False):
     @app.route('/', methods=['GET'])
     async def index(request):
         try:
-            print("Serving index.html...")
+            # print("Serving index.html...")
             html_content = await read_html('webpage/index.html')
             # Add a data attribute to the body tag to indicate the page is served from ESP32
             html_content = html_content.replace('<body>', '<body data-esp-mode="true">')
@@ -200,7 +216,7 @@ async def setup(autoconnect=False):
             
             return Response(html_content, headers={'Content-Type': 'text/html'})
         except Exception as e:
-            print(f"Error serving index.html: {e}")
+            # print(f"Error serving index.html: {e}")
             gc.collect()
             return f"Error: {str(e)}"
     
@@ -218,7 +234,7 @@ async def setup(autoconnect=False):
                                      'Cache-Control': 'no-cache'})
         
         except Exception as e:
-            print(f"Error listing files: {e}")
+            # print(f"Error listing files: {e}")
             gc.collect()
             return Response(json.dumps({"error": str(e)}), status_code=500, 
                            headers={'Content-Type': 'application/json'})
@@ -235,7 +251,7 @@ async def setup(autoconnect=False):
             # gc.collect()  # Force garbage collection
             return Response(json.dumps(images), headers={'Content-Type': 'application/json'})
         except Exception as e:
-            print(f"Error listing images: {e}")
+            # print(f"Error listing images: {e}")
             gc.collect()
             return Response(json.dumps({"error": str(e)}), status_code=500, 
                            headers={'Content-Type': 'application/json'})
@@ -244,11 +260,24 @@ async def setup(autoconnect=False):
     @app.route('/thumbnails/<filename>', methods=['GET'])
     async def serve_image(request, filename):
         try:
+            # --- Decode URL-encoded characters (specifically %20 for spaces) ---
+            decoded_filename = filename.replace('%20', ' ')
+            # --- End Decode ---
+
+            # --- Debugging: Print the received and decoded filename ---
+            # print(f"Received filename parameter: '{filename}'") 
+            # print(f"Decoded filename: '{decoded_filename}'")
+            # --- End Debugging ---
+
             # Security check - make sure the filename doesn't contain path traversal
-            if '..' in filename or '/' in filename:
+            if '..' in decoded_filename or '/' in decoded_filename: # Use decoded_filename here
                 return Response("Invalid filename", status_code=400)
                 
-            file_path = f'thumbnails/{filename}'
+            file_path = f'thumbnails/{decoded_filename}' # Use decoded_filename here
+            
+            # --- Debugging: Print the constructed file path ---
+            # print(f"Constructed file path for access: '{file_path}'")
+            # --- End Debugging ---
             
             # Generate ETag for the image
             etag = generate_etag(file_path)
@@ -266,7 +295,8 @@ async def setup(autoconnect=False):
             # Use the generator function directly
             return Response(body=read_in_chunks(file_path), headers=headers)
         except Exception as e:
-            print(f"Error serving image {filename}: {e}")
+            # Use the original filename in the error message for clarity
+            # print(f"Error serving image {filename} (decoded: {decoded_filename}): {e}") 
             gc.collect()
             return Response("Error serving image", status_code=500)
     
@@ -274,7 +304,7 @@ async def setup(autoconnect=False):
     @app.route('/webpage/<path:path>', methods=['GET'])
     async def static_files(request, path):
         try:
-            print(f"Serving static file: {path}")
+            # print(f"Serving static file: {path}")
             # Determine content type based on file extension
             content_type = 'text/plain'
             if path.endswith('.css'):
@@ -312,7 +342,7 @@ async def setup(autoconnect=False):
             # Use the generator function directly
             return Response(body=read_in_chunks(file_path), headers=headers)
         except Exception as e:
-            print(f"Error serving static file {path}: {e}")
+            # print(f"Error serving static file {path}: {e}")
             gc.collect()
             return Response("File not found", status_code=404)
 
@@ -346,11 +376,11 @@ async def setup(autoconnect=False):
                 pass
             
             file_path = f'{folder}/{filename}'
-            print(f"Streaming upload to: {file_path}")
+            # print(f"Streaming upload to: {file_path}")
             
             # Get content length or default to 0
             size = int(request.headers.get('Content-Length', 0))
-            print(f"Content-Length: {size} bytes")
+            # print(f"Content-Length: {size} bytes")
             bytes_written = 0
 
             # Open the file for writing
@@ -388,15 +418,16 @@ async def setup(autoconnect=False):
                             
 
                             # Progress report
-                            print(f"Wrote {bytes_written}/{size} bytes so far")
+                            # print(f"Wrote {bytes_written}/{size} bytes so far")
                             
                     except Exception as stream_error:
-                        print(f"Error reading from stream: {stream_error}")
+                        # print(f"Error reading from stream: {stream_error}")
                         raise
                 else:
-                    print("Request does not have a stream attribute")
+                    # print("Request does not have a stream attribute")
+                    pass
             
-            print(f"Successfully wrote {bytes_written}/{size} bytes to {file_path}")
+            # print(f"Successfully wrote {bytes_written}/{size} bytes to {file_path}")
             return Response(json.dumps({
                 "status": "success",
                 "path": file_path,
@@ -404,14 +435,15 @@ async def setup(autoconnect=False):
             }), headers={'Content-Type': 'application/json'})
         
         except Exception as e:
-            print(f"Error in streaming upload: {e}")
+            # print(f"Error in streaming upload: {e}")
             # Try removing the file if it was partially written
             try:
                 if folder == 'bins' or folder == 'thumbnails':
                     os.remove(file_path)
                     print(f"Removed partial file: {file_path}")
             except Exception as remove_error:
-                print(f"Error removing partial file at {file_path}: {remove_error}")
+                # print(f"Error removing partial file at {file_path}: {remove_error}")
+                pass
             gc.collect()
             return Response(json.dumps({"error": str(e)}), 
                           status_code=500, headers={'Content-Type': 'application/json'})
@@ -429,10 +461,41 @@ async def setup(autoconnect=False):
             # gc.collect()  # Force garbage collection
             return Response(json.dumps(binaries), headers={'Content-Type': 'application/json'})
         except Exception as e:
-            print(f"Error listing binaries: {e}")
+            # print(f"Error listing binaries: {e}")
             gc.collect()
             return Response(json.dumps({"error": str(e)}), status_code=500, 
                            headers={'Content-Type': 'application/json'})
+    
+    @app.route('/display', methods=['POST'])
+    async def display(request):
+        try:
+            bin_name = request.args.get('filename')
+            if not bin_name:
+                return Response(json.dumps({"error": "Missing filename parameter"}), 
+                              status_code=400, headers={'Content-Type': 'application/json'})
+            if bin_name not in os.listdir('bins'):
+                return Response(json.dumps({"error": f"File {bin_name} not found in bins"}), 
+                              status_code=404, headers={'Content-Type': 'application/json'})
+            if '..' in bin_name or '/' in bin_name:
+                return Response(json.dumps({"error": "Invalid filename"}), 
+                              status_code=400, headers={'Content-Type': 'application/json'})
+            file_path = f'bins/{bin_name}'
+            # print(f"Displaying file: {file_path}")
+            # 30s blocking process to display the file
+            try:
+                displayepd.display(file_path)
+            except Exception as e:
+                # print(f"Error displaying file: {e}")
+                return Response(json.dumps({"error": str(e)}), 
+                              status_code=500, headers={'Content-Type': 'application/json'})
+            return Response(json.dumps({"status": "success", "message": f"Displayed {bin_name}"}),
+                          headers={'Content-Type': 'application/json'})
+        except Exception as e:
+            # print(f"Error in display endpoint: {e}")
+            gc.collect()
+            return Response(json.dumps({"error": str(e)}), 
+                          status_code=500, headers={'Content-Type': 'application/json'})
+
     
     # Add endpoint for deleting a file from bins or thumbnails
     @app.route('/delete-file', methods=['DELETE'])
@@ -477,7 +540,7 @@ async def setup(autoconnect=False):
                           headers={'Content-Type': 'application/json'})
         
         except Exception as e:
-            print(f"Error deleting file: {e}")
+            # print(f"Error deleting file: {e}")
             gc.collect()
             return Response(json.dumps({"error": str(e)}), 
                           status_code=500, headers={'Content-Type': 'application/json'})
@@ -500,7 +563,7 @@ async def setup(autoconnect=False):
                 used_space = total_space - free_space
                 
             except Exception as e:
-                print(f"Error getting statvfs: {e}")
+                # print(f"Error getting statvfs: {e}")
                 # Default values for ESP32 if statvfs fails
                 total_space = 1024 * 1024 * 4  # 4MB
                 used_space = 1024 * 1024 * 1   # Assume 1MB used
@@ -526,7 +589,7 @@ async def setup(autoconnect=False):
             }), headers={'Content-Type': 'application/json', 'Cache-Control': 'no-cache'})
             
         except Exception as e:
-            print(f"Error getting storage space: {e}")
+            # print(f"Error getting storage space: {e}")
             gc.collect()
             return Response(json.dumps({"error": str(e)}), status_code=500, 
                            headers={'Content-Type': 'application/json'})
@@ -536,64 +599,66 @@ async def setup(autoconnect=False):
 async def release_port(port=80):
     """Attempt to release a port that might be in use"""
     try:
-        print(f"Attempting to release port {port}...")
+        # print(f"Attempting to release port {port}...")
         # Create a socket and try to bind to the port
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(('0.0.0.0', port))
         s.close()
         await asyncio.sleep(0.1) # Add a small delay after closing
-        print(f"Port {port} should be available now")
+        # print(f"Port {port} should be available now")
         return True
     except Exception as e:
-        print(f"Failed to release port {port}: {e}")
+        # print(f"Failed to release port {port}: {e}")
         return False
 
 async def run_server(autoconnect=True):
     app = await setup(autoconnect=autoconnect)
-    ipaddr = wifi.ipaddr()
+    ip = ipaddr()
     if app:
         try:
             oledclear()
-            oledprint(f"IP: {ipaddr}")
+            oledprint(f"IP: {ip}")
             await app.start_server(debug=True, port=80)
         except Exception as e:
-            print(f"Error starting server: {e}")
+            # print(f"Error starting server: {e}")
             oledclear()
             if "address already in use" in str(e) or "EADDRINUSE" in str(e):
-                print("Port 80 is already in use. Attempting to release it...")
+                # print("Port 80 is already in use. Attempting to release it...")
                 if await release_port(80):
-                    print("Waiting a moment before retrying server start...")
+                    # print("Waiting a moment before retrying server start...")
                     await asyncio.sleep(0.5) # Add a delay before retrying
                     try:
-                        oledprint("IP: {ipaddr}")
+                        oledprint("IP: {ip}")
                         await app.start_server(debug=True, port=80)
                     except Exception as e2:
                         oledclear()
                         oledprint("err:{e2}")
-                        print(f"Failed to start server after releasing port: {e2}")
+                        # print(f"Failed to start server after releasing port: {e2}")
                 else:
-                    print("Failed to release port 80. Exiting...")
+                    # print("Failed to release port 80. Exiting...")
+                    pass
             else:
                 oledclear()
                 oledprint("err:{e}")
                 # Handle other potential startup errors if needed
-                print(f"An unexpected error occurred during server startup: {e}")
-                print("Server setup failed. Exiting...")
+                # print(f"An unexpected error occurred during server startup: {e}")
+                # print("Server setup failed. Exiting...")
     else:
         oledclear()
         oledprint("Server setup failed")
-        print("Server setup failed. Exiting...")
+        # print("Server setup failed. Exiting...")
 
 # Main function to run the server
 def start():
     try:
         asyncio.run(run_server(autoconnect=True))
     except KeyboardInterrupt:
-        print("Server stopped by user")
+        # print("Server stopped by user")
+        pass
     except Exception as e:
-        print(f"Server error: {e}")
-
+        # print(f"Server error: {e}")
+        pass
 # If this file is run directly
 if __name__ == "__main__":
     start()

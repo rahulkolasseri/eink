@@ -1,0 +1,4 @@
+[submodule "webpage"]
+	path = webpage
+	url = https://github.com/rahulkolasseri/Framesitev2.git
+	branch = ondevice
